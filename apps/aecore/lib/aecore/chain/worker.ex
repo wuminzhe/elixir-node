@@ -6,6 +6,8 @@ defmodule Aecore.Chain.Worker do
   use GenServer
 
   alias Aecore.Structures.Block
+  alias Aecore.Structures.CoinbaseTx
+  alias Aecore.Structures.SignedTx
   alias Aecore.Chain.ChainState
   alias Aecore.Txs.Pool.Worker, as: Pool
   alias Aecore.Chain.BlockValidation
@@ -233,20 +235,34 @@ defmodule Aecore.Chain.Worker do
   defp calculate_block_acc_txs_info(block) do
     block_hash = BlockValidation.block_header_hash(block.header)
     accounts = for tx <- block.txs do
-      [tx.data.from_acc, tx.data.to_acc]
+      case tx do
+        %CoinbaseTx{} ->
+          [tx.to_acc]
+        %SignedTx{} ->
+          [tx.data.from_acc, tx.data.to_acc]
+      end
     end
+
     accounts_unique = accounts |> List.flatten() |> Enum.uniq() |> List.delete(nil)
     for account <- accounts_unique, into: %{} do
       acc_txs = Enum.filter(block.txs, fn(tx) ->
-          tx.data.from_acc == account || tx.data.to_acc == account
+          case tx do
+            %CoinbaseTx{} ->
+              tx.to_acc == account
+            %SignedTx{} ->
+              tx.data.from_acc == account || tx.data.to_acc == account
+          end
         end)
+
       tx_hashes = Enum.map(acc_txs, fn(tx) ->
           tx_bin = Serialization.pack_binary(tx)
           :crypto.hash(:sha256, tx_bin)
         end)
+
       tx_tuples = Enum.map(tx_hashes, fn(hash) ->
           {block_hash, hash}
         end)
+
       {account, tx_tuples}
     end
   end

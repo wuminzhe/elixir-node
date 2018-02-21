@@ -3,7 +3,8 @@ defmodule GetTxsForAddressTest do
   use ExUnit.Case
 
   alias Aecore.Chain.Worker, as: Chain
-  alias Aecore.Structures.SpendTx, as: SpendTx
+  alias Aecore.Structures.SpendTx
+  alias Aecore.Structures.CoinbaseTx
   alias Aecore.Keys.Worker, as: Keys
   alias Aecore.Miner.Worker, as: Miner
   alias Aecore.Chain.BlockValidation, as: BlockValidation
@@ -48,7 +49,14 @@ defmodule GetTxsForAddressTest do
         |> Map.delete(:signature)
         |> Map.delete(:proof)
         |> SpendTx.new()
-      key = SignedTx.hash_tx(transaction)
+      key =
+        case transaction do
+          %CoinbaseTx{} ->
+            CoinbaseTx.hash_tx(transaction)
+          %SignedTx{} ->
+            SignedTx.hash_tx(transaction)
+        end
+
       transaction_bin = Serialization.pack_binary(transaction)
       tx_block = Chain.get_block(user_tx_with_proof.block_hash)
       assert {:ok, :verified} =

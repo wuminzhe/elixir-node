@@ -9,6 +9,7 @@ defmodule Aecore.Txs.Pool.Worker do
   alias Aecore.Structures.SignedTx
   alias Aecore.Structures.Block
   alias Aecore.Structures.SpendTx
+  alias Aecore.Structures.CoinbaseTx
   alias Aecore.Chain.BlockValidation
   alias Aecore.Peers.Worker, as: Peers
   alias Aecore.Chain.Worker, as: Chain
@@ -73,7 +74,15 @@ defmodule Aecore.Txs.Pool.Worker do
         Logger.error("Fee is too low")
         {:reply, :error, tx_pool}
       true ->
-        updated_pool = Map.put_new(tx_pool, SignedTx.hash_tx(tx), tx)
+        tx_hash =
+          case tx do
+            %CoinbaseTx{} ->
+              CoinbaseTx.hash_tx(tx)
+            %SignedTx{} ->
+              SignedTx.hash_tx(tx)
+          end
+
+        updated_pool = Map.put_new(tx_pool, tx_hash, tx)
         if tx_pool == updated_pool do
           Logger.info("Transaction is already in pool")
         else
@@ -86,7 +95,16 @@ defmodule Aecore.Txs.Pool.Worker do
   end
 
   def handle_call({:remove_transaction, tx}, _from, tx_pool) do
-    {_, updated_pool} = Map.pop(tx_pool, SignedTx.hash_tx(tx))
+    tx_hash =
+      case tx do
+        %CoinbaseTx{} ->
+          CoinbaseTx.hash_tx(tx)
+        %SignedTx{} ->
+          SignedTx.hash_tx(tx)
+      end
+
+    {_, updated_pool} = Map.pop(tx_pool, tx_hash)
+
     {:reply, :ok, updated_pool}
   end
 

@@ -5,6 +5,7 @@ defmodule Aecore.Chain.BlockValidation do
   alias Aecore.Structures.Block
   alias Aecore.Structures.Header
   alias Aecore.Structures.SignedTx
+  alias Aecore.Structures.CoinbaseTx
   alias Aecore.Chain.ChainState
   alias Aecore.Chain.Difficulty
   alias Aeutil.Serialization
@@ -92,7 +93,12 @@ defmodule Aecore.Chain.BlockValidation do
   def validate_block_transactions(block) do
     block.txs
     |> Enum.map(fn tx ->
-      SignedTx.is_coinbase?(tx) ||  SignedTx.is_valid?(tx)
+      case tx do
+        %SignedTx{} ->
+          SignedTx.is_valid?(tx)
+        %CoinbaseTx{} ->
+          true
+      end
     end)
   end
 
@@ -135,14 +141,21 @@ defmodule Aecore.Chain.BlockValidation do
     |> :gb_merkle_trees.root_hash()
   end
 
-  @spec build_merkle_tree(list(SignedTx.t())) :: tuple()
+  @spec build_merkle_tree(list(SignedTx.t() | CoinbaseTx.t())) :: tuple()
   def build_merkle_tree(txs) do
     if Enum.empty?(txs) do
       <<0::256>>
     else
       merkle_tree =
       for transaction <- txs do
-        transaction_data_bin = Serialization.pack_binary(transaction.data)
+        transaction_data_bin =
+          case transaction do
+            %SignedTx{} ->
+              Serialization.pack_binary(transaction.data)
+            %CoinbaseTx{} ->
+              Serialization.pack_binary(transaction)
+          end
+
         {:crypto.hash(:sha256, transaction_data_bin), transaction_data_bin}
       end
 
@@ -153,12 +166,12 @@ defmodule Aecore.Chain.BlockValidation do
     end
   end
 
-  @spec calculate_root_hash(Block.t()) :: integer()
+  @spec sum_coinbase_transactions(Block.t()) :: integer()
   defp sum_coinbase_transactions(block) do
     block.txs
     |> Enum.map(fn tx ->
-      if SignedTx.is_coinbase?(tx) do
-        tx.data.value
+      if match?(CoinbaseTx, tx) do
+        tx.value
       else
         0
       end

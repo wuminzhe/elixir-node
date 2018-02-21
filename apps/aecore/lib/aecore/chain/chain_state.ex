@@ -5,6 +5,7 @@ defmodule Aecore.Chain.ChainState do
   """
 
   alias Aecore.Structures.SignedTx
+  alias Aecore.Structures.CoinbaseTx
   alias Aeutil.Serialization
 
   require Logger
@@ -26,21 +27,17 @@ defmodule Aecore.Chain.ChainState do
 
   @spec apply_transaction_on_state!(SignedTx.t(), account_chainstate(), integer()) :: account_chainstate()
   def apply_transaction_on_state!(transaction, chain_state, block_height) do
-    cond do
-      SignedTx.is_coinbase?(transaction) ->
+    case transaction do
+      %CoinbaseTx{} ->
         chain_state
         |> apply_transaction_addition!(block_height, transaction)
-
-      transaction.data.from_acc != nil ->
+      %SignedTx{} ->
         if !SignedTx.is_valid?(transaction), do: throw {:error, "Invalid transaction"}
 
         chain_state
         |> apply_transaction_nonce!(transaction)
         |> apply_transaction_deduction!(block_height, transaction)
         |> apply_transaction_addition!(block_height, transaction)
-
-      true ->
-        throw {:error, "Noncoinbase transaction with from_acc=nil"}
     end
   end
 
@@ -152,11 +149,18 @@ defmodule Aecore.Chain.ChainState do
 
   @spec apply_transaction_addition!(account_chainstate(), non_neg_integer(), SignedTx.t()) :: account_chainstate()
   defp apply_transaction_addition!(chain_state, block_height, transaction) do
+    {to_acc, value, lock_time_block} =
+      case transaction do
+        %CoinbaseTx{} ->
+          {transaction.to_acc, transaction.value, transaction.lock_time_block}
+        %SignedTx{} ->
+          {transaction.data.to_acc, transaction.data.value, transaction.data.lock_time_block}
+      end
     chain_state
     |> apply_to_state!(block_height,
-                       transaction.data.to_acc,
-                       transaction.data.value,
-                       transaction.data.lock_time_block)
+                       to_acc,
+                       value,
+                       lock_time_block)
   end
 
 end

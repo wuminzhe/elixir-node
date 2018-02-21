@@ -15,6 +15,7 @@ defmodule Aecore.Miner.Worker do
   alias Aecore.Keys.Worker, as: Keys
   alias Aecore.Structures.SpendTx
   alias Aecore.Structures.SignedTx
+  alias Aecore.Structures.CoinbaseTx
   alias Aecore.Chain.ChainState
   alias Aecore.Txs.Pool.Worker, as: Pool
   alias Aeutil.Bits
@@ -257,20 +258,19 @@ defmodule Aecore.Miner.Worker do
 
   def calculate_total_fees(txs) do
     List.foldl(txs, 0, fn (tx, acc) ->
-        acc + tx.data.fee
+      case tx do
+        %CoinbaseTx{} ->
+          acc
+        %SignedTx{} ->
+          acc + tx.data.fee
+      end
     end)
   end
 
   def get_coinbase_transaction(to_acc, total_fees, lock_time_block) do
-    tx_data = %SpendTx{
-      from_acc: nil,
-      to_acc: to_acc,
-      value: @coinbase_transaction_value + total_fees,
-      nonce: 0,
-      fee: 0,
-      lock_time_block: lock_time_block
-    }
-    %SignedTx{data: tx_data, signature: nil}
+    CoinbaseTx.create(to_acc,
+                      @coinbase_transaction_value + total_fees,
+                      lock_time_block)
   end
 
   ## Internal

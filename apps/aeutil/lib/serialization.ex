@@ -7,6 +7,7 @@ defmodule Aeutil.Serialization do
   alias Aecore.Structures.Header
   alias Aecore.Structures.SpendTx
   alias Aecore.Structures.SignedTx
+  alias Aecore.Structures.CoinbaseTx
 
   @spec block(Block.t(), :serialize | :deserialize) :: Block.t()
   def block(block, direction) do
@@ -18,13 +19,19 @@ defmodule Aeutil.Serialization do
     Block.new(%{block | header: Header.new(new_header), txs: new_txs})
   end
 
-  @spec tx(SignedTx.t(), :serialize | :deserialize) :: SignedTx.t()
+  @spec tx(CoinbaseTx.t() | SignedTx.t(), :serialize | :deserialize) :: CoinbaseTx.t() | SignedTx.t()
   def tx(tx, direction) do
-    new_data = %{tx.data |
-                 from_acc: hex_binary(tx.data.from_acc, direction),
-                 to_acc: hex_binary(tx.data.to_acc, direction)}
-    new_signature = hex_binary(tx.signature, direction)
-    %SignedTx{data: SpendTx.new(new_data), signature: new_signature}
+    case tx do
+      %CoinbaseTx{} ->
+        new_tx = %{tx |
+                   to_acc: hex_binary(tx.to_acc, direction)}
+      %SignedTx{} ->
+        new_data = %{tx.data |
+                     from_acc: hex_binary(tx.data.from_acc, direction),
+                     to_acc: hex_binary(tx.data.to_acc, direction)}
+        new_signature = hex_binary(tx.signature, direction)
+        %SignedTx{data: SpendTx.new(new_data), signature: new_signature}
+    end
   end
 
   @spec hex_binary(binary(), :serialize | :deserialize) :: binary()
