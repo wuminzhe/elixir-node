@@ -1,3 +1,4 @@
+
 defmodule Aecore.Structures.SignedTx do
   @moduledoc """
   Aecore structure of a signed transaction.
@@ -26,6 +27,11 @@ defmodule Aecore.Structures.SignedTx do
   @spec is_valid?(SignedTx.t()) :: boolean()
   def is_valid?(tx) do
     tx.data.value >= 0 && tx.data.fee >= 0 && Keys.verify_tx(tx)
+  end
+
+  @spec is_signed_tx(map()) :: boolean()
+  def is_signed_tx(tx) do
+    Map.has_key?(tx, :data) && Map.has_key?(tx, :signature)
   end
 
   @spec hash_tx(SignedTx.t()) :: binary()

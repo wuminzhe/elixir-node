@@ -19,8 +19,8 @@ defmodule Aeutil.Serialization do
     Block.new(%{block | header: Header.new(new_header), txs: new_txs})
   end
 
-  @spec tx(CoinbaseTx.t() | SignedTx.t(), :serialize | :deserialize) :: CoinbaseTx.t() | SignedTx.t()
-  def tx(tx, direction) do
+  @spec tx(CoinbaseTx.t() | SignedTx.t(), :serialize) :: CoinbaseTx.t() | SignedTx.t()
+  def tx(tx, :serialize = direction) do
     case tx do
       %CoinbaseTx{} ->
         new_tx = %{tx |
@@ -31,6 +31,28 @@ defmodule Aeutil.Serialization do
                      to_acc: hex_binary(tx.data.to_acc, direction)}
         new_signature = hex_binary(tx.signature, direction)
         %SignedTx{data: SpendTx.new(new_data), signature: new_signature}
+    end
+  end
+
+  @spec tx(CoinbaseTx.t() | SignedTx.t(), :deserialize) :: CoinbaseTx.t() | SignedTx.t()
+  def tx(tx, :deserialize = direction) do
+    cond do
+      CoinbaseTx.is_coinbase_tx(tx) ->
+        new_tx = %{tx | to_acc: hex_binary(tx.to_acc, direction)}
+
+        CoinbaseTx.new(new_tx)
+      SignedTx.is_signed_tx(tx) ->
+        new_data = %{
+          from_acc: hex_binary(tx.data.from_acc, direction),
+          to_acc: hex_binary(tx.data.to_acc, direction),
+          value: hex_binary(tx.data.value, direction),
+          fee: hex_binary(tx.data.fee, direction),
+          nonce: hex_binary(tx.data.nonce, direction),
+          lock_time_block: hex_binary(tx.data.lock_time_block, direction)
+        }
+        new_signature = hex_binary(tx.data.signature, direction)
+
+        SignedTx.new(%{data: new_data, signature: new_signature})
     end
   end
 

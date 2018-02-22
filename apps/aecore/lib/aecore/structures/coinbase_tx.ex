@@ -33,4 +33,9 @@ defmodule Aecore.Structures.CoinbaseTx do
     :crypto.hash(:sha256, Serialization.pack_binary(tx))
   end
 
+  @spec is_coinbase_tx(map()) :: boolean()
+  def is_coinbase_tx(tx) do
+    Map.has_key?(tx, :to_acc) && Map.has_key?(tx, :value) && Map.has_key?(tx, :lock_time_block)
+  end
+
 end
