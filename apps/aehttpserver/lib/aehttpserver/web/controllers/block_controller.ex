@@ -2,6 +2,7 @@ defmodule Aehttpserver.Web.BlockController do
   use Aehttpserver.Web, :controller
 
   alias Aecore.Chain.Worker, as: Chain
+  alias Aecore.Miner.Worker, as: Miner
   alias Aeutil.Serialization
   alias Aecore.Chain.BlockValidation
   alias Aecore.Structures.Block
@@ -95,5 +96,17 @@ defmodule Aehttpserver.Web.BlockController do
     Sync.add_block_to_state(block_hash, block)
     Sync.add_valid_peer_blocks_to_chain(Sync.get_peer_blocks())
     json conn, %{ok: "new block received"}
+  end
+
+  def get_candidate_block(conn, %{"pubkey" => pubkey}) do
+    cblock = Serialization.block(Miner.candidate(pubkey), :serialize)
+    json conn, %{:command  => :get_candidate_block,
+                 :status   => :ok,
+                 :response => cblock}
+  end
+  def get_candidate_block(conn, _) do
+    json conn, %{:command  => :get_candidate_block,
+                 :status   => :error,
+                 :response => "Invalid input data"}
   end
 end

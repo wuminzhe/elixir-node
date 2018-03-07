@@ -20,6 +20,7 @@ defmodule Aehttpserver.Web.Router do
     resources "/tx", TxController, param: "account", only: [:show]
     post "/new_block", BlockController, :new_block
     get "/blocks", BlockController, :get_blocks
+    post "/get_candidate_block", BlockController, :get_candidate_block
     get "/raw_blocks", BlockController, :get_raw_blocks
     get "/pool_txs", TxPoolController, :get_pool_txs
     resources "/block", BlockController, param: "hash", only: [:show]

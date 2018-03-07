@@ -210,7 +210,10 @@ defmodule Aecore.Miner.Worker do
   end
 
   @spec candidate() :: {:block_found, integer} | {:no_block_found, integer} | {:error, binary}
-  def candidate() do
+  def candidate(), do: candidate(Wallet.get_public_key())
+
+  @spec candidate(binary) :: {:block_found, integer} | {:no_block_found, integer} | {:error, binary}
+  def candidate(pubkey) do
     top_block = Chain.top_block()
     top_block_hash = BlockValidation.block_header_hash(top_block.header)
     chain_state = Chain.chain_state(top_block_hash)
@@ -223,8 +226,6 @@ defmodule Aecore.Miner.Worker do
       ordered_txs_list = Enum.sort(txs_list, fn (tx1, tx2) -> tx1.data.nonce < tx2.data.nonce end)
       valid_txs_by_chainstate = BlockValidation.filter_invalid_transactions_chainstate(ordered_txs_list, chain_state, top_block.header.height + 1)
       valid_txs_by_fee = filter_transactions_by_fee(valid_txs_by_chainstate)
-
-      pubkey = Wallet.get_public_key()
 
       total_fees = calculate_total_fees(valid_txs_by_fee)
       valid_txs = [get_coinbase_transaction(pubkey, total_fees,
